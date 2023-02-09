@@ -1,6 +1,6 @@
 ---
-title: "SOK1004, høst 2022, Mappeoppgave 2"
-author: "207 og 120"
+title: "SOK1016, vår 2023, Mappeoppgave 1"
+author: "12"
 format: pdf
 echo: true
 output: true
