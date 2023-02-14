@@ -6,6 +6,8 @@ echo: true
 output: true
 editor: visual
 warning: false
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r, message=FALSE, warning=FALSE}
@@ -14,6 +16,7 @@ rm(list=ls())
 library(tidyverse)
 library(rjstat)
 library(httr)
+library(zoo)
 ```
 
 ```{r}
@@ -31,24 +34,7 @@ query <- '{
           "pub2X03",
           "pub2X05",
           "nr2X06_09",
-          "pub2X06",
-          "pub2X09",
           "nr23ind",
-          "pub2X10_12",
-          "nr2310",
-          "nr2312",
-          "pub2X13_15",
-          "nr2315",
-          "nr2316",
-          "pub2X18",
-          "pub2X19_21",
-          "nr2319",
-          "pub2X22_23",
-          "pub2X24",
-          "pub2X25_28",
-          "pub2X29_30",
-          "pub2X31_32",
-          "pub2X33",
           "pub2X35",
           "pub2X36_39",
           "pub2X41_43",
@@ -67,16 +53,74 @@ query <- '{
           "pub2X84",
           "pub2X85",
           "pub2X86_88",
-          "pub2X90_97",
-          "nr24_5",
-          "nr24_",
-          "nr24sivil",
-          "nr2482",
-          "nr25_",
-          "nr23_6fn",
-          "nr23fn",
-          "nr23mark",
-          "nrimark"
+          "pub2X90_97"
+        ]
+      }
+    },
+    {
+      "code": "ContentsCode",
+      "selection": {
+        "filter": "item",
+        "values": [
+          "Prob",
+          "Pin",
+          "BNPB",
+          "Prob2",
+          "PIN2",
+          "BNPB2",
+          "BNPB2ses"
+        ]
+      }
+    },
+    {
+      "code": "Tid",
+      "selection": {
+        "filter": "item",
+        "values": [
+          "2011K1",
+          "2011K2",
+          "2011K3",
+          "2011K4",
+          "2012K1",
+          "2012K2",
+          "2012K3",
+          "2012K4",
+          "2013K1",
+          "2013K2",
+          "2013K3",
+          "2013K4",
+          "2014K1",
+          "2014K2",
+          "2014K3",
+          "2014K4",
+          "2015K1",
+          "2015K2",
+          "2015K3",
+          "2015K4",
+          "2016K1",
+          "2016K2",
+          "2016K3",
+          "2016K4",
+          "2017K1",
+          "2017K2",
+          "2017K3",
+          "2017K4",
+          "2018K1",
+          "2018K2",
+          "2018K3",
+          "2018K4",
+          "2019K1",
+          "2019K2",
+          "2019K3",
+          "2019K4",
+          "2020K1",
+          "2020K2",
+          "2020K3",
+          "2020K4",
+          "2021K1",
+          "2021K2",
+          "2021K3",
+          "2021K4"
         ]
       }
     }
@@ -89,20 +133,157 @@ query <- '{
 hent_indeks.tmp <- url %>%
   POST(body = query, encode = "json")
 
-df_nasjonalregnskap <-  hent_indeks.tmp %>%
+df_1 <-  hent_indeks.tmp %>%
   content("text") %>%
   fromJSONstat() %>%
   as_tibble()
 ```
 
 ```{r}
-df_nasjonalregnskap <- df_nasjonalregnskap %>% 
-  rename(var=statistikkvariabel) %>% 
-  pivot_wider(names_from=var, values_from = value) %>% 
-  relocate(kvartal, .before=næring)
+url <- "https://data.ssb.no/api/v0/no/table/09174/"
+
+query <- '{
+  "query": [
+    {
+      "code": "NACE",
+      "selection": {
+        "filter": "vs:NRNaeringPubAgg",
+        "values": [
+          "pub2X01_02",
+          "pub2X03",
+          "pub2X05",
+          "nr2X06_09",
+          "nr23ind",
+          "pub2X35",
+          "pub2X36_39",
+          "pub2X41_43",
+          "pub2X45_47",
+          "pub2X49B",
+          "pub2X50A",
+          "pub2X49A_52",
+          "pub2X53",
+          "pub2X55_56",
+          "pub2X58_63",
+          "pub2X64_66",
+          "pub2X68A",
+          "pub2X68B",
+          "pub2X69_75",
+          "pub2X77_82",
+          "pub2X84",
+          "pub2X85",
+          "pub2X86_88",
+          "pub2X90_97"
+        ]
+      }
+    },
+    {
+      "code": "ContentsCode",
+      "selection": {
+        "filter": "item",
+        "values": [
+          "SysselsattNorm"
+        ]
+      }
+    },
+    {
+      "code": "Tid",
+      "selection": {
+        "filter": "item",
+        "values": [
+          "2021"
+        ]
+      }
+    }
+  ],
+  "response": {
+    "format": "json-stat2"
+  }
+}'
+
+hent_indeks.tmp <- url %>%
+  POST(body = query, encode = "json")
+
+df_årsverk <-  hent_indeks.tmp %>%
+  content("text") %>%
+  fromJSONstat() %>%
+  as_tibble()
+
+```
+
+```{r}
+df_nasjonalregnskap <- df_1 %>%
+  filter(kvartal == "2021K1" | 
+           kvartal == "2021K2" | 
+           kvartal == "2021K3" | 
+           kvartal == "2021K4") %>% 
+  rename(var=statistikkvariabel) %>%
+  group_by(næring, var) %>% 
+  mutate(årlig_næring=sum(value)) %>% 
+  filter(kvartal == "2021K1")
+  
 df_nasjonalregnskap[is.na(df_nasjonalregnskap)] <- 0
 ```
 
 ```{r}
+df_nasjonalregnskap <- df_nasjonalregnskap %>%
+  select(-(value)) %>% 
+  pivot_wider(names_from=var, values_from = årlig_næring) %>% 
+  mutate(År=as.integer(2021)) %>% 
+  select(-c(kvartal)) %>% 
+  relocate(År, .before = næring) %>% 
+  pivot_longer(3:9, names_to = "var", values_to = "values") %>% 
+  pivot_wider(names_from=næring, values_from=values) %>% 
+  select(-c("Totalt for næringer")) 
+#df_nasjonalregnskap$totalt <- rowSums(df_nasjonalregnskap[, c(3:26)])
+  
+```
+
+```{r}
+df_nasjonalregnskap <- df_nasjonalregnskap %>%
+  pivot_longer(3:26, names_to = "næring", values_to = "values") %>% 
+  pivot_wider(names_from=var, values_from = values)
+```
+
+```{r}
+df_oppg1 <- df_nasjonalregnskap %>% 
+  select(c(År,næring,`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`,`Produksjon i basisverdi. Løpende priser (mill. kr)`))
+```
+
+```{r}
+df_årsverk <- df_årsverk %>% 
+  pivot_wider(names_from = statistikkvariabel, values_from = value)
+```
+
+```{r}
+df_oppg1 <- cbind(df_oppg1,df_årsverk$`Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`)
+df_oppg1 <- df_oppg1 %>% 
+  rename(sysselsatte_årsverk="df_årsverk$`Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`") %>%
+  mutate(År=as.character(År)) %>% 
+  mutate(Total_næring_bruttopr=sum(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`)) %>% 
+  mutate(Total_næring_prod=sum(`Produksjon i basisverdi. Løpende priser (mill. kr)`)) %>% 
+  mutate(Total_næring_ss=sum(`sysselsatte_årsverk`)) %>%     
+  mutate(År=as.numeric(År)) %>%
+  mutate(andel_bruttoprodukt_prosent = 100*(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`/Total_næring_bruttopr)) %>%
+  mutate(andel_produksjon_prosent = 100*(`Produksjon i basisverdi. Løpende priser (mill. kr)`/Total_næring_prod)) %>% 
+  mutate(andel_sysselsatte_prosent = 100*(`sysselsatte_årsverk`/Total_næring_ss))
+  
+```
+
+```{r}
+df_andel <- df_oppg1 %>% 
+  select(c(næring,andel_bruttoprodukt_prosent,andel_produksjon_prosent, andel_sysselsatte_prosent))
+df_andel <- df_andel %>% 
+  pivot_longer(2:4, names_to = "andel", values_to = "prosent")
+```
+
+```{r}
+df_andel %>% 
+  ggplot(aes(x=næring, y=prosent, fill=andel))+
+  geom_bar(position = "dodge", stat="identity")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+```{r}
+
 
 ```
