@@ -7,7 +7,7 @@ output: true
 editor: visual
 warning: false
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r, message=FALSE, warning=FALSE}
@@ -232,15 +232,22 @@ df_nasjonalregnskap <- df_nasjonalregnskap %>%
   select(-c(kvartal)) %>% 
   relocate(År, .before = næring) %>% 
   pivot_longer(3:9, names_to = "var", values_to = "values") %>% 
-  pivot_wider(names_from=næring, values_from=values) %>% 
-  select(-c("Totalt for næringer")) 
-#df_nasjonalregnskap$totalt <- rowSums(df_nasjonalregnskap[, c(3:26)])
+  pivot_wider(names_from=næring, values_from=values) %>%
+  mutate(`Industri og Bergverksdrift` = Industri + Bergverksdrift) %>%
+  mutate(Primærnæringene = `Jordbruk og skogbruk` 
+         + `Fiske, fangst og akvakultur`) %>%
+  mutate(`Tjenester og ellers` = `Vannforsyning, avløp og renovasjon` + `Elektrisitets-, gass- og varmtvannsforsyning`) %>% 
+  mutate(`Finansiell og forretningsmessig tjenesteyting, eiendomsdrift` = `Finansierings- og forsikringsvirksomhet` + `Forretningsmessig tjenesteyting` + `Omsetning og drift av fast eiendom` + `Boligtjenester, egen bolig`) %>% 
+  mutate(Samferdsel = Rørtransport + `Informasjon og kommunikasjon` + `Utenriks sjøfart` + `Transport utenom utenriks sjøfart` + `Post og distribusjonsvirksomhet`) %>% 
+  mutate(`Varehandel, hotell og resturantvirksomhet` = `Varehandel og reparasjon av motorvogner` + `Overnattings- og serveringsvirksomhet`) %>%
+  mutate(`Helse- og sosialtjenester` = `Helse- og omsorgstjenester`, `Kultur, underholdning og annen tjenesteyting`, `Faglig, vitenskapelig og teknisk tjenesteyting`) %>% 
+  select(-c(Industri, Bergverksdrift, `Jordbruk og skogbruk`, `Fiske, fangst og akvakultur`, `Finansierings- og forsikringsvirksomhet`, `Finansierings- og forsikringsvirksomhet`, `Forretningsmessig tjenesteyting`, `Omsetning og drift av fast eiendom`, Rørtransport, `Informasjon og kommunikasjon`, `Utenriks sjøfart`, `Transport utenom utenriks sjøfart`, `Post og distribusjonsvirksomhet`, `Totalt for næringer`, `Varehandel og reparasjon av motorvogner`, `Overnattings- og serveringsvirksomhet`, `Boligtjenester, egen bolig`, `Helse- og omsorgstjenester`, `Kultur, underholdning og annen tjenesteyting`, `Faglig, vitenskapelig og teknisk tjenesteyting`, `Vannforsyning, avløp og renovasjon`, `Elektrisitets-, gass- og varmtvannsforsyning`))
   
 ```
 
 ```{r}
 df_nasjonalregnskap <- df_nasjonalregnskap %>%
-  pivot_longer(3:26, names_to = "næring", values_to = "values") %>% 
+  pivot_longer(3:13, names_to = "næring", values_to = "values") %>% 
   pivot_wider(names_from=var, values_from = values)
 ```
 
@@ -251,18 +258,28 @@ df_oppg1 <- df_nasjonalregnskap %>%
 
 ```{r}
 df_årsverk <- df_årsverk %>% 
-  pivot_wider(names_from = statistikkvariabel, values_from = value)
+  pivot_wider(names_from = statistikkvariabel, values_from = value) %>% 
+  pivot_wider(names_from = næring, values_from = `Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`) %>%
+  mutate(`Industri og Bergverksdrift` = Industri + Bergverksdrift) %>%
+  mutate(Primærnæringene = `Jordbruk og skogbruk` 
+         + `Fiske, fangst og akvakultur`) %>%
+  mutate(`Tjenester og ellers` = `Vannforsyning, avløp og renovasjon` + `Elektrisitets-, gass- og varmtvannsforsyning`) %>% 
+  mutate(`Finansiell og forretningsmessig tjenesteyting, eiendomsdrift` = `Finansierings- og forsikringsvirksomhet` + `Forretningsmessig tjenesteyting` + `Omsetning og drift av fast eiendom`+ `Boligtjenester, egen bolig` ) %>% 
+  mutate(Samferdsel = Rørtransport + `Informasjon og kommunikasjon` + `Utenriks sjøfart` + `Transport utenom utenriks sjøfart` + `Post og distribusjonsvirksomhet`) %>% 
+  mutate(`Varehandel, hotell og resturantvirksomhet` = `Varehandel og reparasjon av motorvogner` + `Overnattings- og serveringsvirksomhet`) %>%
+  mutate(`Helse- og sosialtjenester` = `Helse- og omsorgstjenester`, `Kultur, underholdning og annen tjenesteyting`, `Faglig, vitenskapelig og teknisk tjenesteyting`) %>% 
+  select(-c(Industri, Bergverksdrift, `Jordbruk og skogbruk`, `Fiske, fangst og akvakultur`, `Finansierings- og forsikringsvirksomhet`, `Finansierings- og forsikringsvirksomhet`, `Forretningsmessig tjenesteyting`, `Omsetning og drift av fast eiendom`, Rørtransport, `Informasjon og kommunikasjon`, `Utenriks sjøfart`, `Transport utenom utenriks sjøfart`, `Post og distribusjonsvirksomhet`, `Varehandel og reparasjon av motorvogner`, `Overnattings- og serveringsvirksomhet`, `Boligtjenester, egen bolig`, `Helse- og omsorgstjenester`, `Kultur, underholdning og annen tjenesteyting`, `Faglig, vitenskapelig og teknisk tjenesteyting`, `Vannforsyning, avløp og renovasjon`, `Elektrisitets-, gass- og varmtvannsforsyning`))%>%
+  pivot_longer(2:12, names_to = "næring", values_to = "Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)")
+  
 ```
 
 ```{r}
 df_oppg1 <- cbind(df_oppg1,df_årsverk$`Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`)
 df_oppg1 <- df_oppg1 %>% 
   rename(sysselsatte_årsverk="df_årsverk$`Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`") %>%
-  mutate(År=as.character(År)) %>% 
   mutate(Total_næring_bruttopr=sum(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`)) %>% 
   mutate(Total_næring_prod=sum(`Produksjon i basisverdi. Løpende priser (mill. kr)`)) %>% 
   mutate(Total_næring_ss=sum(`sysselsatte_årsverk`)) %>%     
-  mutate(År=as.numeric(År)) %>%
   mutate(andel_bruttoprodukt_prosent = 100*(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`/Total_næring_bruttopr)) %>%
   mutate(andel_produksjon_prosent = 100*(`Produksjon i basisverdi. Løpende priser (mill. kr)`/Total_næring_prod)) %>% 
   mutate(andel_sysselsatte_prosent = 100*(`sysselsatte_årsverk`/Total_næring_ss))
@@ -284,6 +301,117 @@ df_andel %>%
 ```
 
 ```{r}
+df_sammenligning <- df_oppg1 %>% 
+  select(c(næring, `Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`, `Produksjon i basisverdi. Løpende priser (mill. kr)`, sysselsatte_årsverk))
+df_sammenligning1 <- df_sammenligning
+df_sammenligning <- df_sammenligning %>%
+  select(-(sysselsatte_årsverk)) %>% 
+  pivot_longer(2:3, names_to = "sammenligning", values_to = "value")
+df_sammenligning1 <- df_sammenligning1 %>% 
+  mutate(bruttop_per_ss= `Bruttoprodukt i basisverdi. Løpende priser (mill. kr)` / sysselsatte_årsverk)
+```
 
+```{r}
+df_sammenligning1 %>% 
+  ggplot(aes(x=næring, y=bruttop_per_ss))+
+  geom_bar(position = "dodge", stat="identity")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
 
+```{r}
+df_sammenligning %>% 
+  ggplot(aes(x=næring, y=value, fill=sammenligning))+
+  geom_bar(position = "dodge", stat="identity")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+## Oppgave 3
+
+```{r}
+df_1 <- df_1 %>% 
+  rename(var=statistikkvariabel) %>% 
+  pivot_wider(names_from = var, values_from = value)
+df_2 <- df_1 %>% 
+  select(c(næring,kvartal,`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`, `Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)`))
+```
+
+```{r}
+df_total <- df_2
+df_2 <- df_2 %>% 
+  pivot_longer(3:4, names_to= "bruttoprodukt", values_to= "value") %>% 
+  pivot_wider(names_from=næring, values_from=value) %>% 
+  mutate(`Industri og Bergverksdrift` = Industri + Bergverksdrift) %>%
+  mutate(Primærnæringene = `Jordbruk og skogbruk` 
+         + `Fiske, fangst og akvakultur`) %>%
+  mutate(`Tjenester og ellers` = `Vannforsyning, avløp og renovasjon` + `Elektrisitets-, gass- og varmtvannsforsyning`) %>% 
+  mutate(`Finansiell og forretningsmessig tjenesteyting, eiendomsdrift` = `Finansierings- og forsikringsvirksomhet` + `Forretningsmessig tjenesteyting` + `Omsetning og drift av fast eiendom` ) %>% 
+  mutate(Samferdsel = Rørtransport + `Informasjon og kommunikasjon` + `Utenriks sjøfart` + `Transport utenom utenriks sjøfart` + `Post og distribusjonsvirksomhet`) %>% 
+  mutate(`Varehandel, hotell og resturantvirksomhet` = `Varehandel og reparasjon av motorvogner` + `Overnattings- og serveringsvirksomhet`) %>%
+  mutate(`Helse- og sosialtjenester` = `Helse- og omsorgstjenester`, `Kultur, underholdning og annen tjenesteyting`, `Faglig, vitenskapelig og teknisk tjenesteyting`) %>% 
+  select(-c(Industri, Bergverksdrift, `Jordbruk og skogbruk`, `Fiske, fangst og akvakultur`, `Finansierings- og forsikringsvirksomhet`, `Finansierings- og forsikringsvirksomhet`, `Forretningsmessig tjenesteyting`, `Omsetning og drift av fast eiendom`, Rørtransport, `Informasjon og kommunikasjon`, `Utenriks sjøfart`, `Transport utenom utenriks sjøfart`, `Post og distribusjonsvirksomhet`, `Totalt for næringer`, `Varehandel og reparasjon av motorvogner`, `Overnattings- og serveringsvirksomhet`, `Boligtjenester, egen bolig`, `Helse- og omsorgstjenester`, `Kultur, underholdning og annen tjenesteyting`, `Faglig, vitenskapelig og teknisk tjenesteyting`, `Vannforsyning, avløp og renovasjon`, `Elektrisitets-, gass- og varmtvannsforsyning`)) %>% 
+  pivot_longer(3:13, names_to = "næring", values_to = "value")
+```
+
+```{r}
+df_3 <- df_2
+df_3 <- df_3 %>% 
+  filter(bruttoprodukt == "Bruttoprodukt i basisverdi. Løpende priser (mill. kr)") 
+
+df_3$kvartal <- gsub("K1", "", as.character(df_3$kvartal))
+df_3$kvartal <- gsub("K2", "", as.character(df_3$kvartal)) 
+df_3$kvartal <- gsub("K3", "", as.character(df_3$kvartal))
+df_3$kvartal <- gsub("K4", "", as.character(df_3$kvartal)) 
+df_3 <- df_3%>%
+  mutate(kvartal=as.numeric(kvartal)) %>% 
+  group_by(næring, kvartal) %>% 
+  mutate(årlig_næring=sum(value))
+```
+
+```{r}
+df_3 %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=næring))+
+  geom_line()
+```
+
+```{r}
+df_4 <- df_2
+df_4 <- df_4 %>% 
+  filter(bruttoprodukt == "Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)") 
+
+df_4$kvartal <- gsub("K1", "", as.character(df_4$kvartal))
+df_4$kvartal <- gsub("K2", "", as.character(df_4$kvartal)) 
+df_4$kvartal <- gsub("K3", "", as.character(df_4$kvartal))
+df_4$kvartal <- gsub("K4", "", as.character(df_4$kvartal)) 
+df_4 <- df_4%>%
+  mutate(kvartal=as.numeric(kvartal)) %>% 
+  group_by(næring, kvartal) %>% 
+  mutate(årlig_næring=sum(value))
+```
+
+```{r}
+df_4 %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=næring))+
+  geom_line()
+```
+
+```{r}
+df_total <- df_total %>% 
+  filter(næring == "Totalt for næringer")
+df_total$kvartal <- gsub("K1", "", as.character(df_total$kvartal))
+df_total$kvartal <- gsub("K2", "", as.character(df_total$kvartal)) 
+df_total$kvartal <- gsub("K3", "", as.character(df_total$kvartal))
+df_total$kvartal <- gsub("K4", "", as.character(df_total$kvartal)) 
+df_total <- df_total%>%
+  mutate(kvartal=as.numeric(kvartal)) %>% 
+  group_by(næring, kvartal) %>% 
+  mutate(årlig_løpende=sum(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`)) %>% 
+  mutate(årlig_faste=sum(`Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)`)) %>% 
+  pivot_longer(5:6, names_to = "Bruttoprodukt", values_to = "value")
+  
+```
+
+```{r}
+df_total %>% 
+  ggplot(aes(x=kvartal, y= value, col=Bruttoprodukt))+
+  geom_line()
 ```
