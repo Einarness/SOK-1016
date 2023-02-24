@@ -1,25 +1,36 @@
 ---
 title: "SOK1016, vår 2023, Mappeoppgave 1"
-author: "12"
+author: "12 og 19"
 format: pdf
-echo: true
+echo: False
 output: true
 editor: visual
 warning: false
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
+
+# Oppgave 1 - 40%
+
+### Lag to til fire figurer som sammenligninger sysselsetting, produksjon, bruttoprodukt, og bruttoprodukt per sysselsatt på tvers av næringer i 2021. Sysselsetting oppgis i antall årsverk, produksjon, bruttoprodukt, og bruttoprodukt per sysselsatt i løpende priser. Dere må selv avgjøre hvilke tall som er meningsfylte å sammenligne og hvorvidt dere ønsker å dele opp tallene i ulike figurer.
+
+#### Hint 1. Dere kan ta inspirasjon fra Figur 2.2 i pensum, men ikke begrens dere til den.
+
+#### Hint 2. Tallene i datasettet er kvartalsvise, ikke årlige, hvilket innebærer at dere må gjøre en transformasjon.
 
 ```{r, message=FALSE, warning=FALSE}
 # output | false
+#rydder envirmont
 rm(list=ls()) 
+#laster inn pakker vi trenger
 library(tidyverse)
 library(rjstat)
 library(httr)
 library(zoo)
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
+#laster inn dataframe vi trenger
 url <- "https://data.ssb.no/api/v0/no/table/09171/"
 
 query <- '{
@@ -139,7 +150,8 @@ df_1 <-  hent_indeks.tmp %>%
   as_tibble()
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
+#laster inn dataframe vi trenger
 url <- "https://data.ssb.no/api/v0/no/table/09174/"
 
 query <- '{
@@ -211,20 +223,23 @@ df_årsverk <-  hent_indeks.tmp %>%
 ```
 
 ```{r}
+#lager ett nytt df med kun verdiene fra 2021
 df_nasjonalregnskap <- df_1 %>%
   filter(kvartal == "2021K1" | 
            kvartal == "2021K2" | 
            kvartal == "2021K3" | 
            kvartal == "2021K4") %>% 
   rename(var=statistikkvariabel) %>%
-  group_by(næring, var) %>% 
+  group_by(næring, var) %>%  
   mutate(årlig_næring=sum(value)) %>% 
   filter(kvartal == "2021K1")
+#regner ut slik at vi får en årlig verdie istendfor kvartalsvis
   
 df_nasjonalregnskap[is.na(df_nasjonalregnskap)] <- 0
 ```
 
 ```{r}
+#rydder i dataframet. slår sammen næringer slik det blir mer oversiktlig.
 df_nasjonalregnskap <- df_nasjonalregnskap %>%
   select(-(value)) %>% 
   pivot_wider(names_from=var, values_from = årlig_næring) %>% 
@@ -246,17 +261,20 @@ df_nasjonalregnskap <- df_nasjonalregnskap %>%
 ```
 
 ```{r}
+#rydder i df slik det er mer oversiktlig
 df_nasjonalregnskap <- df_nasjonalregnskap %>%
   pivot_longer(3:13, names_to = "næring", values_to = "values") %>% 
   pivot_wider(names_from=var, values_from = values)
 ```
 
 ```{r}
+#lager ett df med variablene vi tregnger for å løse opp1.
 df_oppg1 <- df_nasjonalregnskap %>% 
   select(c(År,næring,`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`,`Produksjon i basisverdi. Løpende priser (mill. kr)`))
 ```
 
 ```{r}
+#rydder i dataframet med data på sysselsetting i årsverk. Slår sammen næringer slik det blir mer oversiktlig.
 df_årsverk <- df_årsverk %>% 
   pivot_wider(names_from = statistikkvariabel, values_from = value) %>% 
   pivot_wider(names_from = næring, values_from = `Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`) %>%
@@ -274,71 +292,147 @@ df_årsverk <- df_årsverk %>%
 ```
 
 ```{r}
+#slår sammen dataframe med verider vi trenger. Regner ut andelen(prosent) av totalen over næringene.
 df_oppg1 <- cbind(df_oppg1,df_årsverk$`Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`)
 df_oppg1 <- df_oppg1 %>% 
   rename(sysselsatte_årsverk="df_årsverk$`Årsverk, heltidsekvivalenter, for lønnstakere og selvstendige (1 000 årsverk)`") %>%
   mutate(Total_næring_bruttopr=sum(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`)) %>% 
   mutate(Total_næring_prod=sum(`Produksjon i basisverdi. Løpende priser (mill. kr)`)) %>% 
   mutate(Total_næring_ss=sum(`sysselsatte_årsverk`)) %>%     
-  mutate(andel_bruttoprodukt_prosent = 100*(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`/Total_næring_bruttopr)) %>%
-  mutate(andel_produksjon_prosent = 100*(`Produksjon i basisverdi. Løpende priser (mill. kr)`/Total_næring_prod)) %>% 
-  mutate(andel_sysselsatte_prosent = 100*(`sysselsatte_årsverk`/Total_næring_ss))
+  mutate(bruttoprodukt = 100*(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`/Total_næring_bruttopr)) %>%
+  mutate(produksjon = 100*(`Produksjon i basisverdi. Løpende priser (mill. kr)`/Total_næring_prod)) %>% 
+  mutate(sysselsetting_årsverk = 100*(`sysselsatte_årsverk`/Total_næring_ss))
   
 ```
 
 ```{r}
+#lager et dataframe med variablene vi trenger for å plotte grafen.
 df_andel <- df_oppg1 %>% 
-  select(c(næring,andel_bruttoprodukt_prosent,andel_produksjon_prosent, andel_sysselsatte_prosent))
+  select(c(næring,bruttoprodukt,produksjon, sysselsetting_årsverk))
 df_andel <- df_andel %>% 
   pivot_longer(2:4, names_to = "andel", values_to = "prosent")
 ```
 
 ```{r}
+#plotter figur 1
 df_andel %>% 
-  ggplot(aes(x=næring, y=prosent, fill=andel))+
+  ggplot(aes(x=str_wrap(næring, width = 35), y=prosent, fill=andel))+
   geom_bar(position = "dodge", stat="identity")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  labs(title="Bruttoprodukt, produksjon og sysselsetting fordelt på næringer i 2021", subtitle="Bruttoprodukt og produksjon i løpende priser. Figur 1", 
+       y="Andeler (prosent)",
+       x="", 
+       fill="", 
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171 og 09174" )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'black', linetype = 'dotted'),
+    panel.grid.minor = element_line(color = 'white', linetype = 'dotted'))
 ```
 
 ```{r}
+#rydder i dataframet. 
 df_sammenligning <- df_oppg1 %>% 
   select(c(næring, `Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`, `Produksjon i basisverdi. Løpende priser (mill. kr)`, sysselsatte_årsverk))
 df_sammenligning1 <- df_sammenligning
 df_sammenligning <- df_sammenligning %>%
-  select(-(sysselsatte_årsverk)) %>% 
+  select(-(sysselsatte_årsverk)) %>%
+  rename(`Bruttoprodukt i basisverdi`=`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`) %>% 
+  rename(`Produksjon i basisverdi`=`Produksjon i basisverdi. Løpende priser (mill. kr)`) %>% 
   pivot_longer(2:3, names_to = "sammenligning", values_to = "value")
+
+#regner ut bruttoproduktet og produksjon per sysselsatt
 df_sammenligning1 <- df_sammenligning1 %>% 
-  mutate(bruttop_per_ss= `Bruttoprodukt i basisverdi. Løpende priser (mill. kr)` / sysselsatte_årsverk)
+  mutate(bruttop_per_ss= `Bruttoprodukt i basisverdi. Løpende priser (mill. kr)` / sysselsatte_årsverk)%>%
+  mutate(prod_per_ss = `Produksjon i basisverdi. Løpende priser (mill. kr)`/sysselsatte_årsverk)
 ```
 
 ```{r}
+#plotter figur 2
 df_sammenligning1 %>% 
-  ggplot(aes(x=næring, y=bruttop_per_ss))+
+  ggplot(aes(x=str_wrap(næring, width = 30), y=bruttop_per_ss))+
   geom_bar(position = "dodge", stat="identity")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  labs(title="Bruttoprodukt per sysselsatt, årsverk fordelt på næringer", 
+       subtitle="Løpende priser (mill. kr). Figur 2",
+       y="Norske Kroner (mill)",
+       x="",
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171 og 09174" )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'black', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'white', linetype = 'dotted'))
 ```
 
 ```{r}
+#plotter figur 3
+df_sammenligning1 %>% 
+  ggplot(aes(x=str_wrap(næring, width = 30), y=prod_per_ss))+
+  geom_bar(position = "dodge", stat="identity")+
+  labs(title="Produksjon per sysselsatt, årsverk fordelt på næringer", 
+       subtitle="Løpende priser (mill. kr). Figur 3",
+       y="Norske Kroner (mill)",
+       x="",
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171 og 09174" )+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'black', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'white', linetype = 'dotted'))
+```
+
+```{r}
+#plotter figur 4
 df_sammenligning %>% 
-  ggplot(aes(x=næring, y=value, fill=sammenligning))+
+  ggplot(aes(x=str_wrap(næring, width = 35), y=value, fill=sammenligning))+
   geom_bar(position = "dodge", stat="identity")+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  labs(title="Bruttoprodukt og produksjon fordelt på næringer i 2021",
+       subtitle="Løpende priser (mill. kr). Figur 4", 
+       y="Norske Kroner (mill)",
+       x="Næringer",
+       fill="" , 
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
+  scale_y_continuous(labels = scales::comma)+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'black', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'white', linetype = 'dotted'))
 ```
 
-## Oppgave 3
+# Oppgave 2 - 10%
+
+# Diskuter hvorvidt bruttoprodukt per sysselsatt er et godt mål på produktivitet i offentlig sektor.
+
+Bruttoprodukt per sysselsatt (BPS) kan være et godt og nyttig mål på produktivitet i offentlig sektor, men har også en del begrensninger. I tillegg til at BPS er en enkel og direkte måte å måle produktiviteten, gir det også en god indikasjon på hvor mye bruttoprodukt eller verdi som skapes per sysselsatt. Dette kan vi se i figur 2. Her er bruttoprodukt målt i løpende priser og sysselsetting er målt i årsverk, slik at to femtiprosentstillinger omregnes til ett årsverk. Vi ser at utvinning av råolje og naturgass, inkl. tjenester har klart høyest BPS, noe som forteller oss at denne sektoren er den mest effektive når det kommer til verdiskapning per sysselsatt. *(Nasjonalregnskap, u.å.)*
+
+Ulempene ved å bruke BPS som eneste mål på produktivitet i offentlig sektor er at det ikke tar hensyn til kvaliteten på den offentlige tjenesten som tilbys, eller andre faktorer som kan påvirke produktiviteten, som for eksempel arbeidsforhold og teknologi. BPS er også et unøyaktig mål, når det gjelder offentlige virksomheter som ikke har en direkte bruttoproduksjon, som for eksempel skoler eller sykehus. I tillegg kan BPS føre til en unødvendig fokusering på å øke antallet av sysselsatte, i stedet for å fokusere på å øke effektiviteten og kvaliteten på tjenestene som tilbys. *(Nasjonalregnskap, u.å.)*
+
+# Oppgave 3 - 40%
+
+### Lag figurer som viser bruttoprodukt per næring i både faste og løpende priser mellom 2011 og 2021. Diskuter hvorvidt det er noen næringer hvor variasjon i produktprisene har særlig stor innvirkning på verdien av bruttoproduksjonen.
 
 ```{r}
+#bruke pivot wider for å gjøre df med oversiktlig
 df_1 <- df_1 %>% 
   rename(var=statistikkvariabel) %>% 
   pivot_wider(names_from = var, values_from = value)
-df_2 <- df_1 %>% 
-  select(c(næring,kvartal,`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`, `Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)`))
+
+#lager ett nytt df med verdien vi trenger.
+df_oppg3 <- df_1 %>% 
+  select(c(kvartal,
+           næring,
+           `Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`,
+           `Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)`,        
+           `Produktinnsats. Faste 2020-priser (mill. kr)`, 
+           `Produktinnsats. Løpende priser (mill. kr)`, `Produksjon i basisverdi. Faste 2020-priser (mill. kr)`,
+           `Produksjon i basisverdi. Løpende priser (mill. kr)`))
 ```
 
 ```{r}
-df_total <- df_2
-df_2 <- df_2 %>% 
-  pivot_longer(3:4, names_to= "bruttoprodukt", values_to= "value") %>% 
+#rydder i dataframet. slår sammen næringer slik det blir mer oversiktlig.
+df_oppg3 <- df_oppg3 %>% 
+  pivot_longer(3:8, names_to= "bruttoprodukt", values_to= "value") %>% 
   pivot_wider(names_from=næring, values_from=value) %>% 
   mutate(`Industri og Bergverksdrift` = Industri + Bergverksdrift) %>%
   mutate(Primærnæringene = `Jordbruk og skogbruk` 
@@ -353,65 +447,164 @@ df_2 <- df_2 %>%
 ```
 
 ```{r}
-df_3 <- df_2
-df_3 <- df_3 %>% 
-  filter(bruttoprodukt == "Bruttoprodukt i basisverdi. Løpende priser (mill. kr)") 
+df_oppg3$kvartal <- gsub("K1", "", as.character(df_oppg3$kvartal))
+df_oppg3$kvartal <- gsub("K2", "", as.character(df_oppg3$kvartal)) 
+df_oppg3$kvartal <- gsub("K3", "", as.character(df_oppg3$kvartal))
+df_oppg3$kvartal <- gsub("K4", "", as.character(df_oppg3$kvartal))
 
-df_3$kvartal <- gsub("K1", "", as.character(df_3$kvartal))
-df_3$kvartal <- gsub("K2", "", as.character(df_3$kvartal)) 
-df_3$kvartal <- gsub("K3", "", as.character(df_3$kvartal))
-df_3$kvartal <- gsub("K4", "", as.character(df_3$kvartal)) 
-df_3 <- df_3%>%
+#summerer alle verdiene slik at vi får en årlig verdi istedenfor kvartalvis
+df_oppg3 <- df_oppg3 %>% 
   mutate(kvartal=as.numeric(kvartal)) %>% 
-  group_by(næring, kvartal) %>% 
-  mutate(årlig_næring=sum(value))
+  group_by(kvartal, 
+           næring,
+           bruttoprodukt) %>% 
+  mutate(årlig_næring=sum(value)) %>% 
+  select(-value)
 ```
 
 ```{r}
-df_3 %>% 
-  ggplot(aes(x=kvartal, y=årlig_næring, col=næring))+
-  geom_line()
-```
-
-```{r}
-df_4 <- df_2
-df_4 <- df_4 %>% 
-  filter(bruttoprodukt == "Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)") 
-
-df_4$kvartal <- gsub("K1", "", as.character(df_4$kvartal))
-df_4$kvartal <- gsub("K2", "", as.character(df_4$kvartal)) 
-df_4$kvartal <- gsub("K3", "", as.character(df_4$kvartal))
-df_4$kvartal <- gsub("K4", "", as.character(df_4$kvartal)) 
-df_4 <- df_4%>%
-  mutate(kvartal=as.numeric(kvartal)) %>% 
-  group_by(næring, kvartal) %>% 
-  mutate(årlig_næring=sum(value))
-```
-
-```{r}
-df_4 %>% 
-  ggplot(aes(x=kvartal, y=årlig_næring, col=næring))+
-  geom_line()
-```
-
-```{r}
-df_total <- df_total %>% 
-  filter(næring == "Totalt for næringer")
-df_total$kvartal <- gsub("K1", "", as.character(df_total$kvartal))
-df_total$kvartal <- gsub("K2", "", as.character(df_total$kvartal)) 
-df_total$kvartal <- gsub("K3", "", as.character(df_total$kvartal))
-df_total$kvartal <- gsub("K4", "", as.character(df_total$kvartal)) 
-df_total <- df_total%>%
-  mutate(kvartal=as.numeric(kvartal)) %>% 
-  group_by(næring, kvartal) %>% 
-  mutate(årlig_løpende=sum(`Bruttoprodukt i basisverdi. Løpende priser (mill. kr)`)) %>% 
-  mutate(årlig_faste=sum(`Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)`)) %>% 
-  pivot_longer(5:6, names_to = "Bruttoprodukt", values_to = "value")
+#plotter figuren
+df_oppg3 %>%
+  filter(bruttoprodukt == "Bruttoprodukt i basisverdi. Løpende priser (mill. kr)") %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=str_wrap(næring, width = 35)))+
+  geom_line()+
+  labs(title="Årlig bruttoprodukt fordelt på næringer i perioden 2011-2021",
+       subtitle="Løpende priser (mill. kr). Figur 5", 
+       y="Norske Kroner (mill)",
+       x="År", color="Næringer" ,
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
   
+  theme(legend.text = element_text(size = 7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'white', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'black', linetype = 'dotted'))
 ```
 
 ```{r}
-df_total %>% 
-  ggplot(aes(x=kvartal, y= value, col=Bruttoprodukt))+
-  geom_line()
+#plotter figuren
+df_oppg3 %>%
+  filter(bruttoprodukt == "Bruttoprodukt i basisverdi. Faste 2020-priser (mill. kr)") %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=str_wrap(næring, width = 35)))+
+  geom_line()+
+  labs(title="Årlig bruttoprodukt fordelt på næringer i perioden 2011-2021",
+       subtitle="Faste 2020-priser (mill. kr). Figur 6", 
+       y="Norske Kroner(mill)",
+       x="År",
+       color="Næringer" , 
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
+  scale_y_continuous(labels = scales::comma)+
+  theme(legend.text = element_text(size = 7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'white', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'black', linetype = 'dotted'))
 ```
+
+```{r}
+#plotter figuren
+df_oppg3 %>%
+  filter(bruttoprodukt == "Produktinnsats. Faste 2020-priser (mill. kr)" ) %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=str_wrap(næring, width = 35)))+
+  geom_line()+
+  labs(title="Årlig produktinnsats fordelt på næringer i perioden 2011-2021", 
+       subtitle="Faste 2020-priser (mill. kr). Figur 7",
+       y="Norske Kroner(mill)",
+       x="År", 
+       color="Næringer" ,
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
+  scale_y_continuous(labels = scales::comma)+
+  theme(legend.text = element_text(size = 7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'white', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'black', linetype = 'dotted'))
+```
+
+```{r}
+#plotter figuren
+df_oppg3 %>%
+  filter(bruttoprodukt == "Produktinnsats. Løpende priser (mill. kr)" ) %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=str_wrap(næring, width = 35)))+
+  geom_line()+
+  labs(title="Årlig produktinnsats fordelt på næringer i perioden 2011-2021", 
+       subtitle="Løpende priser (mill. kr). Figur 8",
+       y="Norske Kroner(mill)",
+       x="År", 
+       color="Næringer" ,
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
+  scale_y_continuous(labels = scales::comma)+
+  theme(legend.text = element_text(size = 7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'white', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'black', linetype = 'dotted'))
+```
+
+```{r}
+#plotter figuren
+df_oppg3 %>%
+  filter(bruttoprodukt == "Produksjon i basisverdi. Faste 2020-priser (mill. kr)" ) %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=str_wrap(næring, width = 35)))+
+  geom_line()+
+  labs(title="Årlig bruttoproduksjon fordelt på næringer i perioden 2011-2021", 
+       subtitle="Faste 2020-priser (mill. kr). Figur 9",
+       y="Norske Kroner(mill)",
+       x="År", 
+       color="Næringer" , 
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
+  scale_y_continuous(labels = scales::comma)+
+  theme(legend.text = element_text(size = 7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'white', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'black', linetype = 'dotted'))
+```
+
+```{r}
+#plotter figuren
+df_oppg3 %>%
+  filter(bruttoprodukt == "Produksjon i basisverdi. Løpende priser (mill. kr)" ) %>% 
+  ggplot(aes(x=kvartal, y=årlig_næring, col=str_wrap(næring, width = 37)))+
+  geom_line()+
+  labs(title="Årlig bruttoproduksjon fordelt på næringer i perioden 2011-2021",
+       subtitle="Løpende priser (mill. kr). Figur 10",
+       y="Norske Kroner(mill)",
+       x="År", 
+       color="Næringer" ,
+       caption = "Kilder: Statistisk sentralbyrå: tabell 09171")+
+  scale_y_continuous(labels = scales::comma)+
+  theme(legend.text = element_text(size = 7),
+        plot.background = element_rect(fill = "white"),
+        panel.background = element_rect(fill = 'white', color = 'black'),
+        panel.grid.major = element_line(color = 'white', linetype = 'dotted'),
+        panel.grid.minor = element_line(color = 'black', linetype = 'dotted'))
+```
+
+I denne oppgaven diskuterer vi hvilke næringer i Norge hvor variasjoner i produktpriser har særlig stor innvirkning på verdien av bruttoproduksjonen. Vi tar utgangspunkt i grafer som viser bruttoprodukt, produktinnsats og bruttoproduksjon i faste og løpende priser for ulike næringer mellom 2011 og 2021.
+
+Bruttoproduksjon får man ved å ta bruttoprodukt + produktinnsats. Dette forteller oss at næringer der bruttoproduktet er relativt lavt, vil en høy produktinnsats ha en større innvirkning på bruttoproduksjonen. Vi ser, i figur 7-10, at industri og bergverksdriftsnæringen har høyest produktinnsats og bruttoproduksjon av alle næringene. Samtidig viser figur 5 og 6, at den ikke er blant næringene med høyest bruttoprodukt. Dette kan indikere at bruttoproduksjonen for denne næringen vil være spesielt sensitiv for endringer i produktpriser. Industri- og bergverksnæringen er en sektor der råvarer og materialer utgjør en stor del av produktinnsatsen. Dermed vil prisendringer på disse komponentene ha stor innvirkning på den totale kostnaden og verdien av bruttoproduksjonen. *Holden, S. (2018). Makroøkonomi (3. utg.). Oslo: Universitetsforlaget.*
+
+Samferdsel og bygge- og anleggsvirksomhet er to andre næringer som også har høy produktinnsats og bruttoproduksjon, samt et middels høyt bruttoprodukt. Dermed vil endringer i produktinnsatsen ha en stor innvirkning på bruttoproduksjonen i disse næringene. Samtidig er også disse sektorene avhengige av materialer og utstyr, i tillegg til at faktorer som etterspørsel, arbeidskraft og offentlige reguleringer har stor betydning. Prisøkning på blant annet materialer og drivstoff vil føre til økte kostnader, som igjen vil ha innvirkning på bruttoproduksjonen. *(Nasjonalregnskap, u.å.)*
+
+Vi ser på figur 7-10 at det kan tyde på at, utvinning av råolje- og naturgassnæringen er en næring der variasjonen i produktprisene vil ha betydning for bruttoproduksjonen. Næringen har en stor andel av råvarer og materialer i produktinnsatsen, og endringer i prisene vil derfor ha stor innvirkning på verdien av bruttoproduksjonen. I tillegg har prisene, på disse ressursene, en tendens til å variere mye på grunn av endringer i global etterspørsel og tilbud. Norge er en stor produsent av olje og gass, og inntektene fra denne næringen utgjør en betydelig del av landets bruttoprodukt. Dette kombinert med en høy bruttoproduksjon, gjør at endringer i produktprisene vil ha stor påvirkning på den samlet verdien av bruttoproduksjonen til de ulike næringene. *(Fakta om olje og energi, u.å.)*
+
+# Oppgave 4 - 10%
+
+### I norsk sammenheng skiller vi ofte mellom bruttonasjonalprodukt (BNP) og brutto nasjonalprodukt på fastlandet (FN-BNP). Hvilke næringer er unntatt fra FN-BNP, og hvorfor gjøres dette? Knytt gjerne besvarelsen til funnene fra oppgave 3.
+
+I Norge brukes bruttonasjonalprodukt (BNP) og brutto nasjonalprodukt på fastlandet (FN-BNP) som økonomiske mål for å måle verdiskapingen innenfor landets grenser. FN-BNP fokuserer kun på verdiskapingen som skjer på fastlandet, og ekskluderer dermed produksjonen fra petroleumsvirksomhet, fiskeri og havbruk samt noen offshore tjenester som ofte har store svingninger. Dette gjøres for å få et mer stabilt mål på økonomisk aktivitet på fastlandet, og for å få en bedre forståelse av den underliggende økonomiske utviklingen i Norge. *(Nasjonalregnskap, u.å.)*
+
+Funnene fra oppgave 3 kan knyttes til dette, da de viser at olje- og gassektoren har en betydelig innvirkning på bruttoproduksjonen i Norge. Vi kan se i figur 6, at bruttoproduktet har vokst de siste årene, mye på grunn av økte inntekter fra olje- og gassektoren. Selv om dette har bidratt til økonomisk vekst og velstand, har det også ført til avhengighet av olje- og gassektoren og gjort økonomien sårbar for svingninger i oljeprisene. *(Cappelen et al. - Nedbygging av petroleumsvirksomheten - store utfor.pdf, u.å.)*
+
+For å redusere denne sårbarheten og fremme bærekraftig økonomisk utvikling, har norske myndigheter prioritert å utvikle andre næringer på fastlandet, inkludert teknologi, maritim sektor, turisme og oppdrettsnæringen. Ved å ha en mer presis og nøyaktig måling av den økonomiske aktiviteten på fastlandet gjennom FN-BNP, kan myndighetene bedre vurdere effektiviteten av politikk og tiltak rettet mot å fremme vekst og utvikling i disse sektorene. *(Cappelen et al. - Nedbygging av petroleumsvirksomheten - store utfor.pdf, u.å.)*
+
+# Kildehenvisning
+
+Nasjonalregnskap. (u.å.). SSB. Hentet 24. februar 2023, fra https://www.ssb.no/nasjonalregnskap-og-konjunkturer/nasjonalregnskap/statistikk/nasjonalregnskap
+
+Holden, S. (2018). Makroøkonomi (3. utg.). Oslo: Universitetsforlaget.
+
+Fakta om olje og energi. (u.å.). SSB. Hentet 24. februar 2023, fra https://www.ssb.no/energi-og-industri/faktaside/olje-og-energi
+
+Cappelen et al. - Nedbygging av petroleumsvirksomheten---Store utfor.pdf. (u.å.). Hentet 24. februar 2023, fra https://www.regjeringen.no/contentassets/41c27ff0e7a3482c8e2a5adff7ece6d2/ssb_210512.pdf
